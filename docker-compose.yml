@@ -1,0 +1,71 @@
+services:
+    user-service:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: user-service
+        networks:
+            - user-service-network
+            - kafka_network
+        depends_on:
+            - redis
+            - postgres
+        environment:
+            - REDIS_HOST=redis-container
+            - REDIS_PORT=6379
+            - KAFKA_BROKER=kafka-container:9092
+            - DATABASE_URL=postgresql://root:root@postgres-container:5432/users
+        env_file:
+            - .env.production
+        ports:
+            - "8010:8010" # Exposes user-service on localhost:8010
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:8010/health"]
+            interval: 10s
+            timeout: 5s
+            retries: 3
+
+    redis:
+        image: redis:alpine
+        container_name: redis-container
+        environment:
+            - REDIS_HOST=redis-container
+            - REDIS_PORT=6379
+        ports:
+            - "6379:6379"
+        networks:
+            - user-service-network
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    postgres:
+        image: postgres:13-alpine
+        container_name: postgres-container
+        environment:
+            - POSTGRES_USER=root # Define the PostgreSQL username
+            - POSTGRES_PASSWORD=root # Define the PostgreSQL password
+            - POSTGRES_DB=users # Define the PostgreSQL database name
+        ports:
+            - "5432:5432" # Exposes PostgreSQL on localhost:5432
+        networks:
+            - user-service-network
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U root -d users"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+networks:
+    user-service-network:
+        driver: bridge
+    kafka_network:
+        external: true
+
+volumes:
+    postgres_data:
+        driver: local

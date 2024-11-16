@@ -1,0 +1,20 @@
+{
+    "compilerOptions": {
+        "target": "es2020" /* Set the JavaScript language version for emitted JavaScript. */,
+        "module": "commonjs" /* Specify what module code is generated. Change to "ESNext" for ES Modules. */,
+        "sourceMap": true,
+        "outDir": "./dist" /* Specify an output folder for all emitted files. */,
+        "removeComments": true /* Disable emitting comments. */,
+        "esModuleInterop": true /* Emit additional JavaScript to ease support for importing CommonJS modules. */,
+        "forceConsistentCasingInFileNames": true /* Ensure that casing is correct in imports. */,
+        "strict": true /* Enable all strict type-checking options. */,
+        "noImplicitAny": true /* Enable error reporting for expressions and declarations with an implied 'any' type. */,
+        "strictNullChecks": true /* When type checking, take into account 'null' and 'undefined'. */,
+        "strictFunctionTypes": true /* When assigning functions, check to ensure parameters and return values are subtype-compatible. */,
+        "noUnusedLocals": false /* Enable error reporting when local variables aren't read. */,
+        "noUnusedParameters": false /* Raise an error when a function parameter isn't read. */,
+        "skipLibCheck": true /* Skip type checking all .d.ts files. */
+    },
+    "exclude": ["node_modules"],
+    "include": ["src/**/*"]
+}

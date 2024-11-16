@@ -1,0 +1,32 @@
+# Ignore node_modules directory
+node_modules/
+
+# Ignore build output
+dist/
+build/
+
+# Ignore TypeScript declaration files
+*.d.ts
+
+# Ignore environment files
+.env
+
+# Ignore coverage output
+coverage/
+
+# Ignore package lock file
+package-lock.json
+
+# Ignore logs
+*.log
+log/
+
+# Ignore any temporary files created by your editor
+.vscode/
+.idea/
+
+# Ignore specific configuration files
+.eslintcache
+
+# Ignore husky
+.husky/

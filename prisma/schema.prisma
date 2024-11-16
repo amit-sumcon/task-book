@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Define the enum for user roles
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  TEAM_MEMBER
+}
+
+model User {
+  id             String   @id @default(uuid())
+  name           String
+  username       String   @unique
+  email          String   @unique
+  phoneNumber    String?  @map("phone_number")
+  password       String
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  isActive       Boolean  @default(true) @map("is_active")
+  isVerified     Boolean  @default(false) @map("is_verified")
+  role           UserRole @default(TEAM_MEMBER) // Assigning default role as TEAM_MEMBER
+  avatarUrl      String?  @map("avatar_url") // URL of the uploaded avatar
+  avatarPublicId String?  @map("avatar_public_id") // Cloudinary public_id for easier management
+
+  @@map("users")
+}
