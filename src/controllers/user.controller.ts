@@ -5,6 +5,7 @@ import {
     loginSchema,
     registerSuperAdminSchema,
     registrationSchema,
+    updateRoleSchema,
     updateUserSchema,
 } from "../schema/userSchema";
 import { APIError } from "../utils/APIError";
@@ -118,13 +119,15 @@ export const register = asyncHandler(
         });
 
         // Step 11: Send the response
-        res.status(201).json(
-            new APIResponse(
-                201,
-                { ...user, accessToken, refreshToken },
-                "Successfully created user"
-            )
-        );
+        res.status(201)
+            .cookie("accessToken", accessToken, { secure: true, httpOnly: true })
+            .json(
+                new APIResponse(
+                    201,
+                    { ...user, accessToken, refreshToken },
+                    "Successfully created user"
+                )
+            );
     }
 );
 
@@ -178,9 +181,37 @@ export const login = asyncHandler(
         });
 
         // Step 7: Send Response for successfull login
-        res.status(200).json(
-            new APIResponse(200, { accessToken, refreshToken }, "Successfully Logged In")
-        );
+        res.status(200)
+            .cookie("accessToken", accessToken, { secure: true, httpOnly: true })
+            .json(
+                new APIResponse(
+                    200,
+                    { accessToken, refreshToken },
+                    "Successfully Logged In"
+                )
+            );
+    }
+);
+
+// User logout function
+export const logout = asyncHandler(
+    async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            // Step 1: Get user from req.user
+            const user = req.user;
+
+            // Step 2: Validate the user
+            if (!user) {
+                throw new APIError(403, "Unauthorize request, login again");
+            }
+
+            // Step 3: Remove accessToken cookie, Send back response to user
+            res.status(200)
+                .clearCookie("accessToken", { secure: true, httpOnly: true })
+                .json(new APIResponse(200, {}, "User logout successfully"));
+        } catch (error) {
+            next(error);
+        }
     }
 );
 
@@ -354,17 +385,22 @@ export const registerSuperAdmin = asyncHandler(
     async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
         try {
             // Step 1: Get data(name, email, phoneNumber, role, password) from the req
-            const { name, email, phoneNumber, role, password } = req.body;
+            const { name, email, password, phoneNumber, role } = req.body;
 
             // Step 2: Validate the input data
-            const { data, success } = registerSuperAdminSchema.safeParse({
+            const { data, success, error } = registerSuperAdminSchema.safeParse({
                 name,
                 email,
-                phoneNumber,
                 password,
+                phoneNumber,
+                role,
             });
             if (!success) {
-                throw new APIError(400, "Invalid input");
+                // Extract error messages
+                const errorMessages = error.errors.map((err) => err.message);
+
+                // Throw APIError with error details
+                throw new APIError(400, "Invalid input", errorMessages);
             }
 
             // Step 3: Check is there any super admin
@@ -440,13 +476,78 @@ export const registerSuperAdmin = asyncHandler(
             });
 
             // Step 11: Send the response
-            res.status(201).json(
-                new APIResponse(
-                    201,
-                    { ...user, accessToken, refreshToken },
-                    "Successfully created super admin"
-                )
-            );
+            res.status(201)
+                .cookie("accessToken", accessToken, { httpOnly: true, secure: true })
+                .json(
+                    new APIResponse(
+                        201,
+                        { ...user, accessToken, refreshToken },
+                        "Successfully created super admin"
+                    )
+                );
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+export const updateRole = asyncHandler(
+    async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            // Step 1: Get the data from body
+            const { role, email } = req.body;
+
+            // Step 2: Get user from req.user
+            const user = req.user;
+
+            // Step 3: Validate user role
+            if (!user) {
+                throw new APIError(403, "Access denied.Insufficient permissions.");
+            }
+
+            // Step 4: Validate req.body data
+            const { data, success, error } = updateRoleSchema.safeParse({
+                role,
+                email,
+            });
+            if (!success) {
+                // Extract error messages
+                const errorMessages = error.errors.map((err) => err.message);
+
+                // Throw APIError with error details
+                throw new APIError(400, "Invalid input", errorMessages);
+            }
+
+            // Step 5: Update role, based on user role
+            if (user.role === "SUPER_ADMIN") {
+                await prisma.user.update({
+                    where: {
+                        email: data.email,
+                    },
+                    data: {
+                        role: role,
+                    },
+                });
+            }
+            if (user.role === "ADMIN") {
+                if (role === "SUPER_ADMIN") {
+                    throw new APIError(
+                        403,
+                        "Admins do not have sufficient permissions to assign the SUPER_ADMIN role."
+                    );
+                }
+                await prisma.user.update({
+                    where: {
+                        email: data.email,
+                    },
+                    data: {
+                        role: role,
+                    },
+                });
+            }
+
+            // Step 7: Send response to the user
+            res.status(200).json(new APIResponse(200, "User role updated"));
         } catch (error) {
             next(error);
         }

@@ -26,7 +26,7 @@ export const verifyAccessToken = (token: string): TokenPayload | null => {
             ? (payload as TokenPayload)
             : null;
     } catch (err) {
-        logger.info("Access Token Verification Failed:", err);
+        logger.error("Access Token Verification Failed:", err);
         return null;
     }
 };
@@ -47,7 +47,7 @@ export const verifyRefreshToken = (token: string): TokenPayload | null => {
         }
         return null; // Payload doesn't match the expected structure.
     } catch (err) {
-        logger.info("Refresh Token Verification Failed:", err);
+        logger.error("Refresh Token Verification Failed:", err);
         return null;
     }
 };

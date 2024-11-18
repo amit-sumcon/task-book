@@ -41,3 +41,8 @@ export const registerSuperAdminSchema = z.object({
         .optional(),
     role: z.enum(["ADMIN", "SUPER_ADMIN", "TEAM_MEMBER"]),
 });
+
+export const updateRoleSchema = z.object({
+    email: z.string().email("Invalid email format"),
+    role: z.enum(["ADMIN", "SUPER_ADMIN", "TEAM_MEMBER"]),
+});

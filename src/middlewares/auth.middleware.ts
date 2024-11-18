@@ -8,8 +8,7 @@ export const authenticateToken = (
     res: Response,
     next: NextFunction
 ): void => {
-    const authHeader = req.headers["authorization"];
-    const token = authHeader && authHeader.split(" ")[1];
+    const token = req.headers["authorization"]?.split(" ")[1] || req.cookies.accessToken;
 
     if (!token) {
         throw new APIError(401, "Unauthorized");
