@@ -17,7 +17,13 @@ import { authorizeRoles } from "../middlewares/role.middleware";
 
 const router = Router();
 
-router.post("/register", upload.single("avatar"), register);
+router.post(
+    "/register",
+    upload.single("avatar"),
+    authenticateToken,
+    authorizeRoles("SUPER_ADMIN", "ADMIN"),
+    register
+);
 router.post("/register-super-admin", upload.single("avatar"), registerSuperAdmin);
 router.post("/login", login);
 router.post("/logout", authenticateToken, logout);
