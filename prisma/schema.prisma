@@ -24,10 +24,11 @@ model User {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
   isActive       Boolean  @default(true) @map("is_active")
-  isVerified     Boolean  @default(false) @map("is_verified")
+  isVerified     Boolean  @default(false) @map("is_verified") // it's not required now remove it
   role           UserRole @default(TEAM_MEMBER) // Assigning default role as TEAM_MEMBER
   avatarUrl      String?  @map("avatar_url") // URL of the uploaded avatar
   avatarPublicId String?  @map("avatar_public_id") // Cloudinary public_id for easier management
+  refreshToken   String? // Optional refresh token
 
   @@map("users")
 }

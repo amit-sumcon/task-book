@@ -29,3 +29,15 @@ export const updateUserSchema = z.object({
         .max(10, "Invalid phone number")
         .optional(),
 });
+
+export const registerSuperAdminSchema = z.object({
+    name: z.string().min(1, "Name is required"),
+    email: z.string().email("Invalid email format"),
+    password: z.string().min(6, "Password must be atleast 6 characters"),
+    phoneNumber: z
+        .string()
+        .min(10, "Invalid phone number")
+        .max(10, "Invalid phone number")
+        .optional(),
+    role: z.enum(["ADMIN", "SUPER_ADMIN", "TEAM_MEMBER"]),
+});
