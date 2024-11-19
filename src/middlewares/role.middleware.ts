@@ -6,7 +6,7 @@ export const authorizeRoles = (...allowedRoles: string[]) => {
     return (req: CustomRequest, res: Response, next: NextFunction): void => {
         const user = req.user;
         if (!user || !allowedRoles.includes(user.role)) {
-            throw new APIError(403, "Access denied.Insufficient permissions.");
+            throw new APIError(403, "Access denied. Insufficient permissions.");
         }
         next();
     };

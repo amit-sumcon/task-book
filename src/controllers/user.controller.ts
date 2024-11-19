@@ -27,7 +27,9 @@ import { TokenPayload } from "../types/token";
 export const register = asyncHandler(
     async (req: CustomRequest, res: Response): Promise<void> => {
         // Step 1: Get the data from body
-        const { name, email, phoneNumber, password } = req.body;
+        const { name, email, phoneNumber } = req.body;
+
+        // Password should be default
 
         // Step 2: Get ip address and device info
 
@@ -40,7 +42,6 @@ export const register = asyncHandler(
             name,
             email,
             phoneNumber,
-            password,
         });
         if (!success) {
             throw new APIError(400, "Invalid input");
@@ -62,7 +63,8 @@ export const register = asyncHandler(
         const username = await generateUniqueUsernameFromName(data.name);
 
         // Step 7: Hash the password
-        const hash_password = await bcrypt.hash(data.password, 10);
+        const defaultPassword = "changeme";
+        const hash_password = await bcrypt.hash(defaultPassword, 10);
 
         let avatarLocalPath: string;
         const path = req.file?.path;
@@ -98,36 +100,18 @@ export const register = asyncHandler(
                 password: hash_password,
                 avatarUrl: avatarURL,
                 avatarPublicId: public_id,
+                forcePasswordReset: true,
             },
         });
 
-        const accessToken = generateAccessToken({
-            id: user.id,
-            email: user.email,
-            role: user.role,
-        });
-        const refreshToken = generateRefreshToken({
-            id: user.id,
-            email: user.email,
-            role: user.role,
-        });
-
-        // Optionally store the refresh token in the database if needed
-        await prisma.user.update({
-            where: { id: user.id },
-            data: { refreshToken },
-        });
-
         // Step 11: Send the response
-        res.status(201)
-            .cookie("accessToken", accessToken, { secure: true, httpOnly: true })
-            .json(
-                new APIResponse(
-                    201,
-                    { ...user, accessToken, refreshToken },
-                    "Successfully created user"
-                )
-            );
+        res.status(201).json(
+            new APIResponse(
+                201,
+                { email: user.email, password: defaultPassword },
+                "Successfully created user"
+            )
+        );
     }
 );
 
@@ -209,6 +193,44 @@ export const logout = asyncHandler(
             res.status(200)
                 .clearCookie("accessToken", { secure: true, httpOnly: true })
                 .json(new APIResponse(200, {}, "User logout successfully"));
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+// reset user password
+export const resetPassword = asyncHandler(
+    async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            // Step 1: Validate the request body
+            const { email, newPassword } = req.body;
+            if (!email || !newPassword) {
+                throw new APIError(400, "Email and new password are required");
+            }
+
+            // Step 2: Find the user
+            const user = await prisma.user.findUnique({ where: { email } });
+            if (!user) {
+                throw new APIError(404, "User not found");
+            }
+
+            // Step 3: Hash the new password
+            const hash_password = await bcrypt.hash(newPassword, 10);
+
+            // Step 4: Update the user password and reset flag
+            await prisma.user.update({
+                where: { email },
+                data: {
+                    password: hash_password,
+                    forcePasswordReset: false, // Remove the reset flag
+                },
+            });
+
+            // Step 5: Send response
+            res.status(200).json(
+                new APIResponse(200, {}, "Password reset successful. Please login.")
+            );
         } catch (error) {
             next(error);
         }

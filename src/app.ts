@@ -72,9 +72,11 @@ app.get("/", (req: Request, res: Response, next: NextFunction) => {
 
 // Import all routes
 import userRoute from "./routes/user.route";
+import taskRoute from "./routes/task.route";
 
 // Declare all routes
 app.use("/api/v1/users", userRoute);
+app.use("/api/v1/tasks", taskRoute);
 
 // Error handler
 app.use(errorHandler);
