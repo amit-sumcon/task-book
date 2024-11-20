@@ -25,16 +25,7 @@ enum Frequency {
   E1ST // First occurrence in a cycle
   E2ND // Second occurrence in a cycle
   E3RD // Third occurrence in a cycle
-  E4TH // Fourth occurrence in a cycle
   ELAST // Last occurrence in a cycle
-}
-
-// Enum for priority levels
-enum Priority {
-  CRITICAL
-  HIGH
-  MEDIUM
-  LOW
 }
 
 // Enum for departments
@@ -65,57 +56,37 @@ model User {
   email              String   @unique
   phoneNumber        String?  @map("phone_number")
   password           String
+  role               UserRole @default(TEAM_MEMBER)
+  isActive           Boolean  @default(true) @map("is_active")
+  forcePasswordReset Boolean  @default(false)
+  avatarUrl          String?  @map("avatar_url")
+  avatarPublicId     String?  @map("avatar_public_id")
+  refreshToken       String?
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
-  isActive           Boolean  @default(true) @map("is_active")
-  role               UserRole @default(TEAM_MEMBER) // Assigning default role as TEAM_MEMBER
-  avatarUrl          String?  @map("avatar_url") // URL of the uploaded avatar
-  avatarPublicId     String?  @map("avatar_public_id") // Cloudinary public_id for easier management
-  refreshToken       String? // Optional refresh token
-  forcePasswordReset Boolean  @default(false)
+
+  // Relation fields
+  tasks Task[] // One user can have many tasks
 
   @@map("users")
 }
 
-model TaskDetail {
-  id           Int        @id @default(autoincrement())
-  taskCode     String     @unique
-  name         String     @unique
-  description  String
-  frequency    Frequency // Enum for frequency
-  dependencies Json?
-  department   Department // Enum for department
-  createdBy    String
-  updatedBy    String
+model Task {
+  id         Int        @id @default(autoincrement())
+  taskCode   String
+  name       String
+  freq       Frequency // Frequency of the task
+  department Department // Department responsible for the task
+  planned    DateTime   @db.Date // Planned completion date
+  actual     DateTime?  @db.Date // Actual completion date
+  status     Boolean    @default(false) // Task completion status
+  doerEmail  String // Email of the user the task is assigned to
+  doerName   String
+  assignedBy String // Email of the user who assigned the task
+  updatedBy  String // Email of the last updater
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  User       User[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  isDeleted Boolean  @default(false)
-
-  assignedTasks AssignedTask[]
-}
-
-model AssignedTask {
-  id                  Int       @id @default(autoincrement())
-  doerName            String
-  email               String
-  actualDate          DateTime?
-  estimatedDuration   Int?
-  status              String
-  priority            Priority // Enum for priority
-  emailForBuddySystem String
-  buddyEmail          String
-  assignmentDate      DateTime  @default(now())
-  deadline            DateTime?
-  completionNotes     String?
-  progress            Int?
-  reviewerEmail       String?
-  isUrgent            Boolean   @default(false) // Flag for marking urgent tasks
-
-  taskDetailId Int
-  taskDetail   TaskDetail @relation(fields: [taskDetailId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  isDeleted Boolean  @default(false)
+  @@map("tasks")
 }

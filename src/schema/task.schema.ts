@@ -31,25 +31,32 @@ const frequencyEnum = [
     "E1ST",
     "E2ND",
     "E3RD",
-    "E4TH",
     "ELAST",
 ] as const;
 
-export const createTaskSchema = z.object({
-    name: z.string().min(3, "Name is required"),
-    description: z.string().min(3, "Description is required"),
-    frequency: z.enum(frequencyEnum),
-    dependencies: z.array(z.string()).optional(),
+export const assignTaskSchema = z.object({
+    name: z.string().min(3, "Name must be at least 3 characters"),
+    planned: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "Planned date must be in YYYY-MM-DD format")
+        .refine((date) => {
+            const parsedDate = new Date(date);
+            return !isNaN(parsedDate.getTime()); // Ensure it's a valid date
+        }, "Planned date must be a valid calendar date"),
     department: z.enum(DepartmentEnum),
+    freq: z.enum(frequencyEnum),
+    doerEmail: z.string().email("Invalid email"),
+    doerName: z.string().min(3, "Doer name must be at least 3 characters"),
+});
+
+export const getTaskSchema = z.object({
+    doerEmail: z.string().email("Invalid email"),
 });
 
 export const updateTaskSchema = z.object({
     name: z.string().min(3, "Name must be at least 3 characters").optional(),
-    description: z
-        .string()
-        .min(3, "Description must be at least 3 characters")
-        .optional(),
-    frequency: z.enum(frequencyEnum).optional(),
-    dependencies: z.array(z.string()).optional(),
     department: z.enum(DepartmentEnum).optional(),
+    freq: z.enum(frequencyEnum).optional(),
+    doerEmail: z.string().email("Invalid email").optional(),
+    doerName: z.string().min(3, "Doer name must be at least 3 characters").optional(),
 });

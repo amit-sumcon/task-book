@@ -17,7 +17,7 @@ export const generateTaskId = async (department: string): Promise<string> => {
         taskId = `${departmentCode}-${randomId}`;
 
         // Check if the taskId already exists in the database
-        const taskExists = await prisma.taskDetail.findUnique({
+        const taskExists = await prisma.task.findFirst({
             where: { taskCode: taskId },
         });
 

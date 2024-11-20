@@ -2,92 +2,62 @@ import { NextFunction, Response } from "express";
 import { CustomRequest } from "../types/types";
 import { asyncHandler } from "../utils/asyncHandler";
 import { APIError } from "../utils/APIError";
-import { createTaskSchema, updateTaskSchema } from "../schema/task.schema";
+import { assignTaskSchema, getTaskSchema, updateTaskSchema } from "../schema/task.schema";
 import prisma from "../database/prismaClient";
 import { generateTaskId } from "../utils/generateTaskId";
 import { APIResponse } from "../utils/APIResponse";
+import { calculateNextDate } from "../utils/calculateNextDate";
+import logger from "../config/logger";
 
-// Create a new task
-export const createTask = asyncHandler(
+// Assign new task";
+export const assignTask = asyncHandler(
     async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
         try {
-            // Step 1: Get task details from body
-            const { name, description, frequency, dependencies, department } = req.body;
+            // Step 1: Extract task assignment details from the request body
+            const { planned, name, freq, department, doerEmail, doerName } = req.body;
 
-            // Step 2: Get user from req.user
+            // Step 2: Get the email of the assigning user (from `req.user`)
             const user = req.user;
             if (!user) {
-                throw new APIError(403, "Unauthorized request, login again");
+                throw new APIError(403, "Unauthorized request, please login again");
             }
 
-            // Step 3: Validate task details
-            const { success, data, error } = createTaskSchema.safeParse({
+            // Step 3: Validate input using Zod schema
+            const { success, data, error } = assignTaskSchema.safeParse({
                 name,
-                description,
-                frequency,
-                dependencies,
+                planned,
+                freq,
                 department,
+                doerEmail,
+                doerName,
             });
+
             if (!success) {
-                // Extract error messages
+                // Extract and return validation errors
                 const errorMessages = error.errors.map((err) => err.message);
-
-                // Throw APIError with error details
                 throw new APIError(400, "Invalid input", errorMessages);
-            }
-
-            // Step 4: Check if the task exists or not
-            const isExist = await prisma.taskDetail.findUnique({
-                where: {
-                    name: data.name,
-                    department: data.department,
-                },
-            });
-            if (isExist) {
-                throw new APIError(409, "Task already exists with the same name");
             }
 
             const taskCode = await generateTaskId(data.department);
 
-            // Step 5: Create new task
-            const task = await prisma.taskDetail.create({
+            // Step 6: Update the task with assignment details
+            const updatedTask = await prisma.task.create({
                 data: {
                     taskCode: taskCode,
-                    name: data.name,
-                    description: data.description,
-                    frequency: data.frequency,
-                    dependencies: data.dependencies,
+                    assignedBy: user.email,
                     department: data.department,
-                    createdBy: user.email,
+                    doerEmail: doerEmail,
+                    doerName: doerName,
+                    freq: data.freq,
+                    name: data.name,
+                    planned: new Date(data.planned),
                     updatedBy: user.email,
                 },
             });
 
-            // Step 6: Send back the response
-            res.status(201).json(new APIResponse(201, task, "Task created successfully"));
-        } catch (error) {
-            next(error);
-        }
-    }
-);
-
-// Get task by task code
-export const getTaskByTaskCode = asyncHandler(
-    async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
-        try {
-            // Step 1: Get the task code from params
-            const taskCode = req.params.taskCode;
-
-            // Step 2: Retrive the task by taskCode from the database
-            const task = await prisma.taskDetail.findUnique({
-                where: {
-                    taskCode: taskCode,
-                },
-            });
-
-            // Step 3: Send the response back to the user
+            // Step 7: Respond with success
             res.status(200).json(
-                new APIResponse(200, task, "Task retrived successfully")
+                new APIResponse(200, updatedTask, "Task assigned successfully")
             );
         } catch (error) {
             next(error);
@@ -95,134 +65,255 @@ export const getTaskByTaskCode = asyncHandler(
     }
 );
 
-// Update task
-export const updateTask = asyncHandler(
-    async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
-        try {
-            // Step 1: Get task details from the body
-            const { name, description, department, frequency } = req.body;
-
-            // Step 2: Get task code from params
-            const taskCode = req.params.taskCode;
-
-            // Step 3: Validate task details
-            const { success, data, error } = updateTaskSchema.safeParse({
-                name,
-                description,
-                department,
-                frequency,
-            });
-            if (!success) {
-                // Extract error messages
-                const errorMessages = error.errors.map((err) => err.message);
-
-                // Throw APIError with error details
-                throw new APIError(400, "Invalid input", errorMessages);
-            }
-
-            // Step 4: Get user from the req.user
-            const user = req.user;
-            if (!user) {
-                throw new APIError(403, "Unauthorized request, login again");
-            }
-
-            // Step 6: Retrive the task using taskCode from database
-            const task = await prisma.taskDetail.findUnique({
-                where: {
-                    taskCode: taskCode,
-                },
-            });
-
-            // Step 7: Validate if the task is exists or not
-            if (!task) {
-                throw new APIError(404, "Task not found with the task code");
-            }
-
-            // Step 8: Check if the data is already exists or not
-            if (
-                data.department === task.department ||
-                data.description === task.description ||
-                data.name === task.name ||
-                data.frequency === task.frequency
-            ) {
-                throw new APIError(400, "Data is already exists in the database");
-            }
-
-            // Step 9: Update the data in database
-            await prisma.taskDetail.update({
-                where: {
-                    taskCode: taskCode,
-                },
-                data: {
-                    ...data,
-                    updatedBy: user.email,
-                },
-            });
-
-            const updatedTask = await prisma.taskDetail.findUnique({
-                where: { taskCode: taskCode },
-            });
-
-            // Step 10: Send the response back to the user
-            res.status(200).json(
-                new APIResponse(200, { ...updatedTask }, "Task updated successfully")
-            );
-        } catch (error) {
-            next(error);
-        }
-    }
-);
-
-// Delete the Task
-export const deleteTask = asyncHandler(
-    async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
-        try {
-            // Step 1: Get task code from params
-            const taskCode = req.params.taskCode;
-
-            // Step 2: Delete the task using taskCode from the database
-            const task = await prisma.taskDetail.findUnique({
-                where: {
-                    taskCode: taskCode,
-                },
-            });
-
-            // Step 3: Validate if the task is exists or not
-            if (!task) {
-                throw new APIError(404, "Task not found with the task code");
-            }
-
-            // Step 4: Delete the task from the database
-            await prisma.taskDetail.delete({
-                where: {
-                    taskCode: taskCode,
-                },
-            });
-
-            // Step 5: Send the response back to the user
-            res.status(200).json(
-                new APIResponse(200, {}, "Successfully deleted the task")
-            );
-        } catch (error) {
-            next(error);
-        }
-    }
-);
-
-// Get all tasks
 export const getAllTasks = asyncHandler(
     async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
         try {
-            // Step 1: Retrive all tasks
-            const tasks = await prisma.taskDetail.findMany();
-            // Step 2: Validate the result
-            if (!tasks) {
-                throw new APIError(400, "Unable to fetch the tasks");
+            const tasks = await prisma.task.findMany();
+            res.status(200).json(
+                new APIResponse(200, tasks, "Fetched all tasks successfully")
+            );
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+export const getUserTasks = asyncHandler(
+    async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const { doerEmail } = req.body;
+
+            const { success, data, error } = getTaskSchema.safeParse({
+                doerEmail: doerEmail,
+            });
+            if (!success) {
+                // Extract and return validation errors
+                const errorMessages = error.errors.map((err) => err.message);
+                throw new APIError(400, "Invalid input", errorMessages);
             }
 
-            // Step 3: Send back the task
+            const tasks = await prisma.task.findMany({
+                where: {
+                    doerEmail: data.doerEmail,
+                },
+            });
             res.status(200).json(
-                new APIResponse(200, tasks, "Successfully fetch the tasks")
+                new APIResponse(200, tasks, `Tasks for ${doerEmail} fetched successfully`)
+            );
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+export const getTaskByCode = asyncHandler(
+    async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const taskId = parseInt(req.params.taskId, 10);
+            const task = await prisma.task.findUnique({
+                where: {
+                    id: taskId,
+                },
+            });
+
+            if (!task) {
+                throw new APIError(404, "Task not found");
+            }
+
+            res.status(200).json(
+                new APIResponse(
+                    200,
+                    task,
+                    `Task with code ${taskId} fetched successfully`
+                )
+            );
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+export const updateTask = asyncHandler(
+    async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            // Parse and validate taskId
+            const taskId = parseInt(req.params.taskId, 10);
+            if (isNaN(taskId)) {
+                throw new APIError(400, "Invalid taskId. It should be a number.");
+            }
+
+            const { name, freq, department, doerEmail, doerName } = req.body;
+            const user = req.user; // Assuming req.user is populated by auth middleware
+
+            if (!user) {
+                throw new APIError(403, "Unauthorized request, please login again.");
+            }
+
+            // Get the task to update
+            const task = await prisma.task.findUnique({
+                where: { id: taskId },
+            });
+
+            if (!task) {
+                throw new APIError(404, "Task not found.");
+            }
+
+            // Validate input using Zod schema
+            const { success, data, error } = updateTaskSchema.safeParse({
+                name,
+                freq,
+                department,
+                doerName,
+                doerEmail,
+            });
+
+            if (!success) {
+                const errorMessages = error.errors.map((err) => err.message);
+                throw new APIError(400, "Invalid input", errorMessages);
+            }
+
+            // Update the task
+            const updatedTask = await prisma.task.update({
+                where: { id: taskId },
+                data: {
+                    name: data.name,
+                    freq: data.freq,
+                    department: data.department,
+                    doerEmail: data.doerEmail,
+                    doerName: data.doerName,
+                    updatedBy: user.email,
+                },
+            });
+
+            // Respond with the updated task
+            res.status(200).json(
+                new APIResponse(200, updatedTask, "Task updated successfully.")
+            );
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+// This function is not working
+export const getSortedTasks = asyncHandler(
+    async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const { sortBy } = req.query;
+
+            // Mapping the sortBy query to the actual Prisma sorting options
+            const sortMap: { [key: string]: any } = {
+                status: { status: true },
+                name: { name: "asc" },
+                date: { planned: "asc" },
+            };
+
+            // Use the mapped sort option or an empty object for default
+            const sortOptions = sortMap[sortBy as string] || {};
+
+            // Fetch tasks with the appropriate sorting
+            const tasks = await prisma.task.findMany({
+                orderBy: sortOptions,
+            });
+
+            res.status(200).json(
+                new APIResponse(200, tasks, "Sorted tasks fetched successfully")
+            );
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+export const updateTaskStatus = asyncHandler(
+    async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const { status, taskId } = req.body;
+
+            // Check if status is valid (example: 'completed' or boolean true/false)
+            if (status === undefined || status === null) {
+                throw new APIError(400, "Status is required.");
+            }
+
+            // Fetch the task to ensure it exists
+            const task = await prisma.task.findUnique({
+                where: {
+                    id: taskId,
+                },
+            });
+
+            if (!task) {
+                throw new APIError(404, "Task not found");
+            }
+
+            // Update the task's status
+            const updatedTask = await prisma.task.update({
+                where: {
+                    id: taskId,
+                },
+                data: {
+                    status: status,
+                },
+            });
+
+            res.status(200).json(
+                new APIResponse(200, updatedTask, "Task status updated successfully")
+            );
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+export const reassignTask = asyncHandler(
+    async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const currentDate = new Date(Date.now());
+            logger.info(currentDate);
+
+            // Fetch tasks that are due today or in the past
+            const tasksToReassign = await prisma.task.findMany({
+                where: {
+                    planned: {
+                        lte: currentDate, // Tasks that are due today or earlier
+                    },
+                },
+            });
+
+            if (tasksToReassign.length === 0) {
+                res.status(200).json(new APIResponse(200, [], "No tasks to reassign"));
+                return;
+            }
+
+            const createdTasks = [];
+
+            // Loop through the tasks and reassign based on frequency
+            for (const task of tasksToReassign) {
+                const { freq, planned, taskCode, department, doerEmail, doerName, name } =
+                    task;
+
+                // Use the calculateNextDate function to determine the next planned date based on frequency
+                const nextPlannedDate = calculateNextDate(freq, new Date(planned));
+
+                // Create the new task with the updated planned date
+                const newTask = await prisma.task.create({
+                    data: {
+                        taskCode: taskCode,
+                        assignedBy: task.updatedBy,
+                        department: department,
+                        doerEmail: doerEmail,
+                        doerName: doerName,
+                        freq: freq,
+                        name: name,
+                        planned: nextPlannedDate,
+                        updatedBy: task.updatedBy,
+                    },
+                });
+                createdTasks.push(newTask);
+            }
+
+            res.status(200).json(
+                new APIResponse(200, createdTasks, "Tasks reassigned successfully")
             );
         } catch (error) {
             next(error);
