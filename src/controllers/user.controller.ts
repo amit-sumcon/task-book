@@ -23,6 +23,32 @@ import {
 import { CustomRequest } from "../types/types";
 import { TokenPayload } from "../types/token";
 
+function exclude<User extends object, Key extends keyof User>(
+    user: User,
+    keys: Key[]
+): Omit<User, Key>;
+function exclude<User extends object, Key extends keyof User>(
+    users: User[],
+    keys: Key[]
+): Omit<User, Key>[];
+function exclude<User extends object, Key extends keyof User>(
+    userOrUsers: User | User[],
+    keys: Key[]
+) {
+    if (Array.isArray(userOrUsers)) {
+        return userOrUsers.map(
+            (user) =>
+                Object.fromEntries(
+                    Object.entries(user).filter(([key]) => !keys.includes(key as Key))
+                ) as Omit<User, Key>
+        );
+    } else {
+        return Object.fromEntries(
+            Object.entries(userOrUsers).filter(([key]) => !keys.includes(key as Key))
+        ) as Omit<User, Key>;
+    }
+}
+
 // Create user function
 export const register = asyncHandler(
     async (req: CustomRequest, res: Response): Promise<void> => {
@@ -245,25 +271,25 @@ export const getUserById = asyncHandler(
         // Step 1: Get user id from params
         const user_id = req.params.id;
 
-        // Step 2: Validate the id
-        // if (!Number.isInteger(user_id)) {
-        //     throw new APIError(400, "Invalid user id", [], user_id);
-        // }
-
-        // Step 3: Retrive the user from database by id
+        // Step 2: Retrieve the user from the database by id
         const user = await prisma.user.findUnique({
             where: {
                 id: user_id,
             },
         });
 
-        // Step 4: Check for successfull retrive
+        // Step 3: Check if the user exists
         if (!user) {
             throw new APIError(404, "User not found");
         }
 
+        // Step 4: Exclude the password field
+        const userWithoutPassword = exclude(user, ["password"]);
+
         // Step 5: Send back the response
-        res.status(200).json(new APIResponse(200, user, "Successfully retrive the user"));
+        res.status(200).json(
+            new APIResponse(200, userWithoutPassword, "Successfully retrieved the user")
+        );
     }
 );
 
@@ -272,6 +298,7 @@ export const getAllUser = asyncHandler(
     async (req: CustomRequest, res: Response): Promise<void> => {
         // Step 1: Retrive the user from database by id
         const user = await prisma.user.findMany();
+        const userWithoutPassword = exclude(user, ["password"]);
 
         // Step 2: Check for successfull retrive
         if (!user) {
@@ -280,7 +307,7 @@ export const getAllUser = asyncHandler(
 
         // Step 3: Send back the response
         res.status(200).json(
-            new APIResponse(200, user, "Successfully retrive all the user")
+            new APIResponse(200, userWithoutPassword, "Successfully retrive all the user")
         );
     }
 );
@@ -335,8 +362,16 @@ export const updateUser = asyncHandler(
             },
         });
 
+        if (!updatedUser) {
+            throw new APIError(404, "User not Found");
+        }
+
+        const userWithoutPassword = exclude(updatedUser, ["password"]);
+
         // Step 7: Send back the response
-        res.status(200).json(new APIResponse(200, updatedUser, "Successfully updated"));
+        res.status(200).json(
+            new APIResponse(200, userWithoutPassword, "Successfully updated")
+        );
     }
 );
 
@@ -499,13 +534,15 @@ export const registerSuperAdmin = asyncHandler(
                 data: { refreshToken },
             });
 
+            const userWithoutPassword = exclude(user, ["password"]);
+
             // Step 11: Send the response
             res.status(201)
                 .cookie("accessToken", accessToken, { httpOnly: true, secure: true })
                 .json(
                     new APIResponse(
                         201,
-                        { ...user, accessToken, refreshToken },
+                        { ...userWithoutPassword, accessToken, refreshToken },
                         "Successfully created super admin"
                     )
                 );
