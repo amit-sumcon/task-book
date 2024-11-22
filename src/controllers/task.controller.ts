@@ -81,7 +81,7 @@ export const getAllTasks = asyncHandler(
 export const getUserTasks = asyncHandler(
     async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
         try {
-            const { doerEmail } = req.body;
+            const { doerEmail } = req.query;
 
             const { success, data, error } = getTaskSchema.safeParse({
                 doerEmail: doerEmail,
@@ -228,9 +228,19 @@ export const getSortedTasks = asyncHandler(
 export const updateTaskStatus = asyncHandler(
     async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
         try {
-            const { status, taskId } = req.body;
+            const taskId = parseInt(req.params.taskId, 10);
 
-            // Check if status is valid (example: 'completed' or boolean true/false)
+            // Check if taskId is a valid number
+            if (isNaN(taskId) || taskId <= 0) {
+                throw new APIError(
+                    400,
+                    "Invalid taskId. It should be a positive number."
+                );
+            }
+
+            const { status } = req.body;
+
+            // Validate the status field
             if (status === undefined || status === null) {
                 throw new APIError(400, "Status is required.");
             }
@@ -243,7 +253,12 @@ export const updateTaskStatus = asyncHandler(
             });
 
             if (!task) {
-                throw new APIError(404, "Task not found");
+                throw new APIError(404, "Task not found.");
+            }
+
+            // Check if the status is already set
+            if (task.status === status) {
+                throw new APIError(400, "The task already has the specified status.");
             }
 
             // Update the task's status
@@ -253,11 +268,12 @@ export const updateTaskStatus = asyncHandler(
                 },
                 data: {
                     status: status,
+                    actual: new Date().toISOString(),
                 },
             });
 
             res.status(200).json(
-                new APIResponse(200, updatedTask, "Task status updated successfully")
+                new APIResponse(200, updatedTask, "Task status updated successfully.")
             );
         } catch (error) {
             next(error);

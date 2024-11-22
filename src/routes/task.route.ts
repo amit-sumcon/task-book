@@ -9,44 +9,10 @@ import {
     getUserTasks,
     reassignTask,
     updateTask,
+    updateTaskStatus,
 } from "../controllers/task.controller";
-// import { authenticateToken } from "../middlewares/auth.middleware";
-// import { authorizeRoles } from "../middlewares/role.middleware";
-// import {
-//     // createTask,
-//     // deleteTask,
-//     // getAllTasks,
-//     // getTaskByTaskCode,
-//     // updateTask,
-// } from "../controllers/task.controller";
 
 const router = Router();
-
-// router.post(
-//     "/create",
-//     authenticateToken,
-//     authorizeRoles("SUPER_ADMIN", "ADMIN"),
-//     createTask
-// );
-// router.get("/", authenticateToken, authorizeRoles("SUPER_ADMIN", "ADMIN"), getAllTasks);
-// router.put(
-//     "/:taskCode",
-//     authenticateToken,
-//     authorizeRoles("SUPER_ADMIN", "ADMIN"),
-//     updateTask
-// );
-// router.get(
-//     "/:taskCode",
-//     authenticateToken,
-//     authorizeRoles("SUPER_ADMIN", "ADMIN"),
-//     getTaskByTaskCode
-// );
-// router.delete(
-//     "/:taskCode",
-//     authenticateToken,
-//     authorizeRoles("SUPER_ADMIN", "ADMIN"),
-//     deleteTask
-// );
 
 router.post(
     "/assign-task",
@@ -56,7 +22,7 @@ router.post(
 );
 
 router.get("/", authenticateToken, authorizeRoles("SUPER_ADMIN", "ADMIN"), getAllTasks);
-router.post("/my-tasks", authenticateToken, getUserTasks);
+router.get("/my-tasks", authenticateToken, getUserTasks);
 router.post("/reassign-task", reassignTask);
 router.get("/sort-by", authenticateToken, getSortedTasks);
 router.get(
@@ -71,5 +37,6 @@ router.put(
     authorizeRoles("SUPER_ADMIN", "ADMIN"),
     updateTask
 );
+router.put("/status/:taskId", authenticateToken, updateTaskStatus);
 
 export default router;

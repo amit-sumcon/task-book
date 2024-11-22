@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "tasks" ALTER COLUMN "actual" SET DATA TYPE TIMESTAMP(3);

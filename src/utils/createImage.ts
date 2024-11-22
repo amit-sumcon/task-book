@@ -37,16 +37,13 @@ export async function createImageWithInitials(name: string): Promise<string> {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    // Get initials from the provided name
-    const initialsArray = name.trim().match(/\b(\w)/g);
+    // Get the first letter of the provided name
+    const initial = name.trim().charAt(0).toUpperCase();
 
-    // Handle null result with optional chaining and nullish coalescing
-    const initials = initialsArray?.join("").toUpperCase() || "";
-
-    // Center the initials on the canvas
+    // Center the initial on the canvas
     const textX = canvasWidth / 2;
     const textY = canvasHeight / 2;
-    ctx.fillText(initials, textX, textY);
+    ctx.fillText(initial, textX, textY);
 
     // Generate a unique 6-digit number
     const uniqueNumber = Math.floor(100000 + Math.random() * 900000);

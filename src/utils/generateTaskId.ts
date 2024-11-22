@@ -3,8 +3,24 @@ import prisma from "../database/prismaClient";
 import { APIError } from "./APIError";
 
 export const generateTaskId = async (department: string): Promise<string> => {
-    // Ensure department code is 2 uppercase characters
-    const departmentCode = department.substring(0, 2).toUpperCase();
+    // Extract a meaningful department code
+    const extractDepartmentCode = (dept: string): string => {
+        const words = dept
+            .trim()
+            .split(/[\s_]+/) // Split by spaces or underscores
+            .filter(Boolean); // Remove empty strings
+
+        if (words.length === 1) {
+            // If there's only one word, take the first two characters
+            return words[0].substring(0, 2).toUpperCase();
+        }
+
+        // If there are multiple words, take the first character of each word
+        return words.map((word) => word[0].toUpperCase()).join("");
+    };
+
+    // Clean up the department and extract the code
+    const departmentCode = extractDepartmentCode(department);
 
     const maxRetries = 5; // Set a maximum number of retries
     let taskId: string;

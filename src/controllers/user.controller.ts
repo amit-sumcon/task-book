@@ -159,10 +159,12 @@ export const login = asyncHandler(
         });
 
         // Optionally store the refresh token in the database
-        await prisma.user.update({
+        const updatedUser = await prisma.user.update({
             where: { id: user.id },
             data: { refreshToken },
         });
+
+        // Have to remove the password from the updatedUser
 
         // Step 7: Send Response for successfull login
         res.status(200)
@@ -170,7 +172,7 @@ export const login = asyncHandler(
             .json(
                 new APIResponse(
                     200,
-                    { accessToken, refreshToken },
+                    { accessToken, ...updatedUser },
                     "Successfully Logged In"
                 )
             );
